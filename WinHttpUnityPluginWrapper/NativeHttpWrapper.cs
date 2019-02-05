@@ -8,6 +8,7 @@ namespace WinHttpUnityPluginWrapper
 {
     using System;
     using System.Runtime.InteropServices;
+    using System.Text;
 
     /// <summary>
     /// Wrap native http access dll written on C++ for using in Unity apps for Windows desktop (editor and standonle)
@@ -26,9 +27,30 @@ namespace WinHttpUnityPluginWrapper
         public static string GetContent(string url)
         {
             var parsedUrl = new UrlParts(url);
+            return StringFromNativeUtf8(GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod));
+        }
 
-            var content = GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod);
-            return content;
+        /// <summary>
+        /// The string from native utf 8.
+        /// </summary>
+        /// <param name="nativeUtf8">
+        /// The native utf 8.
+        /// </param>
+        /// <returns>
+        /// The <see cref="string"/>.
+        /// </returns>
+        public static string StringFromNativeUtf8(IntPtr nativeUtf8)
+        {
+            var len = 0;
+            while (Marshal.ReadByte(nativeUtf8, len) != 0)
+            {
+                ++len;
+            }
+
+            var buffer = new byte[len];
+            Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
+            Marshal.Release(nativeUtf8);
+            return Encoding.UTF8.GetString(buffer);
         }
 
         /// <summary>
@@ -61,14 +83,14 @@ namespace WinHttpUnityPluginWrapper
             }
         }
 
-        [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.BStr)]
-        private static extern string GetContent(
+        [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+        [return: MarshalAs(UnmanagedType.SysUInt)]
+        private static extern IntPtr GetContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,
             [MarshalAs(UnmanagedType.LPWStr)] string apiMethod);
 
-        [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode)]
+        [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
         private static extern void PostContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,

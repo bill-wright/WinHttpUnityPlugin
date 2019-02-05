@@ -10,16 +10,17 @@ BSTR ANSItoBSTR(char* input)
 {
 	BSTR result = nullptr;
 	const int lenA = lstrlenA(input);
-	const int lenW = ::MultiByteToWideChar(CP_ACP, 0, input, lenA, nullptr, 0);
+	const int lenW = ::MultiByteToWideChar(CP_UTF8, 0, input, lenA, nullptr, 0);
 	if (lenW > 0)
 	{
 		result = ::SysAllocStringLen(0, lenW);
-		::MultiByteToWideChar(CP_ACP, 0, input, lenA, result, lenW);
+		::MultiByteToWideChar(CP_UTF8, 0, input, lenA, result, lenW);
 	}
 	return result;
 }
 
-BSTR ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte *content, int contentSize)
+const char* ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte* content,
+                           int contentSize)
 {
 	printf("Input parameters:\n");
 	printf("server: %ls\n", server);
@@ -33,7 +34,7 @@ BSTR ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCW
 
 	DWORD dwSize = 0;
 	DWORD dwDownloaded = 0;
-	LPTSTR pszOutBuffer;
+	LPSTR pszOutBuffer;
 	BOOL bResults = FALSE;
 	HINTERNET hConnect = nullptr, hRequest = nullptr;
 	std::string result = "";
@@ -134,10 +135,15 @@ BSTR ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCW
 	if (hConnect) WinHttpCloseHandle(hConnect);
 	if (hSession) WinHttpCloseHandle(hSession);
 
-	printf("\nResult in one string:\n");
-	printf("%s\n", result.c_str());
+	// printf("\nResult in one string:\n");
+	// printf("%s\n", result.c_str());
 
-	return ANSItoBSTR(const_cast<char*>(result.c_str()));
+	const auto length = result.length();
+	//return ANSItoBSTR(const_cast<char*>(result.c_str()));	
+	char* resArray = new char[length + 1];
+	strcpy_s(resArray, length + 1, result.c_str());
+	resArray[length + 1] = '\0';
+	return resArray;
 }
 
 DllExport void PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, int contentSize)
@@ -145,7 +151,7 @@ DllExport void PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod
 	ExecuteRequest(server, port, L"POST", apiMethod, content, contentSize);
 }
 
-DllExport BSTR GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod)
+DllExport const char* GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod)
 {
 	return ExecuteRequest(server, port, L"GET", apiMethod, nullptr, 0);
 }

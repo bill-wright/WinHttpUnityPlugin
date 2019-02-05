@@ -7,16 +7,31 @@ using namespace std;
 
 int main()
 {
-	wstring server = L"koper.dev.local";
-	int port = 8008;
+	SetConsoleOutputCP(65001);
+	wstring server = L"172.16.111.144";
+	int port = 80;
 	wstring method = L"GET";
-	wstring command = L"api/mainDashboard";
+	wstring command = L"cubetser/api/widgetdescription/115";
+	LPCSTR content = GetContent(server.c_str(), port, command.c_str());
+	auto resultLenght = std::strlen(content);
 	cout << "GetResult is:\n";
-	cout << GetContent(server.c_str(), port, command.c_str());
+	printf("%s", content);
+	cout << "\nAdress result:\n";
+	wcout << *content;
+	cout << "\Content size:\n";
+	wcout << resultLenght;
+	cout << "\Last char is:\n";
+	wcout << *(content + resultLenght - 1);
+	// full result is:
+	cout << "\Full result is:\n";
+	for (int i = 0; i < resultLenght; i++) {
+		wprintf(L"%lc", *(content + i));
+	}
 
-	cout << "Post request:\n";
-	LPCSTR content = "{\"Login\":null,\"Date\":\"01/31/2019\",\"Message\":\"Another message to log\"}";
-	PostContent(server.c_str(), port, L"api/log", (unsigned char *)content, strlen(content) * sizeof(char));
+
+	//	cout << "Post request:\n";
+	//LPCSTR content = "{\"Login\":null,\"Date\":\"01/31/2019\",\"Message\":\"Another message to log\"}";
+	//PostContent(server.c_str(), port, L"api/log", (unsigned char *)content, strlen(content) * sizeof(char));
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
