@@ -1,1 +1,6 @@
 .vs
+x64
+Release
+Debug
+obj
+*.user
