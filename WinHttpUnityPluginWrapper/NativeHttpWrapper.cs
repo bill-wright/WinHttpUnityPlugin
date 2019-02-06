@@ -27,7 +27,8 @@ namespace WinHttpUnityPluginWrapper
         public static string GetContent(string url)
         {
             var parsedUrl = new UrlParts(url);
-            return StringFromNativeUtf8(GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod));
+            // return StringFromNativeUtf8(GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod));
+            return GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod);
         }
 
         /// <summary>
@@ -44,7 +45,7 @@ namespace WinHttpUnityPluginWrapper
             var len = 0;
             while (Marshal.ReadByte(nativeUtf8, len) != 0)
             {
-                ++len;
+                len+=2;
             }
 
             var buffer = new byte[len];
@@ -84,8 +85,8 @@ namespace WinHttpUnityPluginWrapper
         }
 
         [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.SysUInt)]
-        private static extern IntPtr GetContent(
+        [return: MarshalAs(UnmanagedType.BStr)]
+        private static extern string GetContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,
             [MarshalAs(UnmanagedType.LPWStr)] string apiMethod);

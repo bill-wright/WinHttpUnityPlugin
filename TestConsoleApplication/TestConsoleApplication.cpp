@@ -12,16 +12,16 @@ int main()
 	int port = 80;
 	wstring method = L"GET";
 	wstring command = L"cubetser/api/Dashboard/58";
-	LPCSTR content = static_cast<char*>(GetContent(server.c_str(), port, command.c_str()));
-	auto resultLenght = std::strlen(content);
+	BSTR content = GetContent(server.c_str(), port, command.c_str());
+	auto resultLenght = std::wcslen(content);
 	cout << "GetResult is:\n";
-	printf("%s", content);
+	printf("%S", content);
 	cout << "\nAdress result:\n";
 	wcout << *content;
 	cout << "\nContent size:\n";
 	wcout << resultLenght;
-	delete[] content;
-	Sleep(100);
+	cout << "\nLast char is:\n";
+	wcout << *(content + resultLenght - 1);
 
 	//	cout << "Post request:\n";
 	//LPCSTR content = "{\"Login\":null,\"Date\":\"01/31/2019\",\"Message\":\"Another message to log\"}";
