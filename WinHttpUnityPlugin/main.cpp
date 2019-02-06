@@ -19,8 +19,8 @@ BSTR ANSItoBSTR(char* input)
 	return result;
 }
 
-const char* ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte* content,
-                           int contentSize)
+void* ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte* content,
+                     int contentSize)
 {
 	printf("Input parameters:\n");
 	printf("server: %ls\n", server);
@@ -138,12 +138,17 @@ const char* ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMetho
 	// printf("\nResult in one string:\n");
 	// printf("%s\n", result.c_str());
 
-	const auto length = result.length();
+	const auto length = result.length() + 1;
 	//return ANSItoBSTR(const_cast<char*>(result.c_str()));	
-	char* resArray = new char[length + 1];
-	strcpy_s(resArray, length + 1, result.c_str());
-	resArray[length + 1] = '\0';
-	return resArray;
+	char* resArray = new char[length];
+	strcpy_s(resArray, length, result.c_str());
+	resArray[length] = '\0';
+
+	// allocate buffer in the heap
+	void* pointer = malloc(length);
+	memcpy(pointer, resArray, length);
+	delete[] resArray;
+	return pointer;
 }
 
 DllExport void PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, int contentSize)
@@ -151,7 +156,7 @@ DllExport void PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod
 	ExecuteRequest(server, port, L"POST", apiMethod, content, contentSize);
 }
 
-DllExport const char* GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod)
+DllExport void* GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod)
 {
 	return ExecuteRequest(server, port, L"GET", apiMethod, nullptr, 0);
 }
