@@ -4,8 +4,7 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace WrapperTestConsoleApp
-{
+namespace WinHttpUnityPluginWrapper {
     using System;
     using System.Runtime.InteropServices;
     using System.Text;
@@ -13,8 +12,7 @@ namespace WrapperTestConsoleApp
     /// <summary>
     /// Wrap native http access dll written on C++ for using in Unity apps for Windows desktop (editor and standonle)
     /// </summary>
-    public static class NativeHttpWrapper
-    {
+    public static class NativeHttpWrapper {
         /// <summary>
         /// The get content.
         /// </summary>
@@ -24,10 +22,10 @@ namespace WrapperTestConsoleApp
         /// <returns>
         /// The string result of request.
         /// </returns>
-        public static string GetContent(string url)
-        {
+        public static string GetContent(string url) {
             var parsedUrl = new UrlParts(url);
-            return StringFromNativeUtf8(GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod));
+            // return StringFromNativeUtf8(GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod));
+            return GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod);
         }
 
         /// <summary>
@@ -39,18 +37,15 @@ namespace WrapperTestConsoleApp
         /// <returns>
         /// The <see cref="string"/>.
         /// </returns>
-        public static string StringFromNativeUtf8(IntPtr nativeUtf8)
-        {
+        public static string StringFromNativeUtf8(IntPtr nativeUtf8) {
             var len = 0;
-            while (Marshal.ReadByte(nativeUtf8, len) != 0)
-            {
-                ++len;
+            while (Marshal.ReadByte(nativeUtf8, len) != 0) {
+                len += 2;
             }
 
             var buffer = new byte[len];
             Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
             Marshal.Release(nativeUtf8);
-            Marshal.FreeHGlobal(nativeUtf8);
             return Encoding.UTF8.GetString(buffer);
         }
 
@@ -63,30 +58,26 @@ namespace WrapperTestConsoleApp
         /// <param name="data">
         /// The data.
         /// </param>
-        public static void PostContent(string url, byte[] data)
-        {
+        public static void PostContent(string url, byte[] data) {
             var parsedUrl = new UrlParts(url);
 
             var size = Marshal.SizeOf(data[0]) * data.Length;
 
             var unmanagementDataPointer = Marshal.AllocHGlobal(size);
 
-            try
-            {
+            try {
                 // Copy the array to unmanaged memory.
                 Marshal.Copy(data, 0, unmanagementDataPointer, data.Length);
                 PostContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, unmanagementDataPointer, data.Length);
-            }
-            finally
-            {
+            } finally {
                 // Free the unmanaged memory.
                 Marshal.FreeHGlobal(unmanagementDataPointer);
             }
         }
 
         [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.SysUInt)]
-        private static extern IntPtr GetContent(
+        [return: MarshalAs(UnmanagedType.BStr)]
+        private static extern string GetContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,
             [MarshalAs(UnmanagedType.LPWStr)] string apiMethod);
@@ -103,8 +94,7 @@ namespace WrapperTestConsoleApp
         ///  Представляет части URL-запроса, необходимые для его выполнения через нативную реализацию
         /// Helper structure to exctract necessary parts from full url string
         /// </summary>
-        private struct UrlParts
-        {
+        private struct UrlParts {
             /// <summary>
             /// Initializes a new instance of the <see cref="UrlParts"/> struct.
             /// </summary>
@@ -112,8 +102,7 @@ namespace WrapperTestConsoleApp
             /// The url.
             /// </param>
             public UrlParts(string url)
-                : this()
-            {
+                : this() {
                 var parsedUrl = new Uri(url);
 
                 this.Host = parsedUrl.Host;

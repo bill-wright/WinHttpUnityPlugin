@@ -8,10 +8,10 @@ using namespace std;
 int main()
 {
 	SetConsoleOutputCP(65001);
-	wstring server = L"172.16.111.144";
+	wstring server = L"127.0.0.1";
 	int port = 80;
 	wstring method = L"GET";
-	wstring command = L"cubetser/api/Dashboard/58";
+	wstring command = L"WorkDefinition/WorkOrder/foo";
 	BSTR content = GetContent(server.c_str(), port, command.c_str());
 	auto resultLenght = std::wcslen(content);
 	cout << "GetResult is:\n";

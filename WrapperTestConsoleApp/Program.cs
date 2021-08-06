@@ -19,7 +19,7 @@ namespace WrapperTestConsoleApp
             Console.OutputEncoding = Encoding.UTF8;
             while (true)
             {
-                var content = NativeHttpWrapper.GetContent("http://172.16.111.144/cubetser/api/Resource/11412");
+                var content = WinHttpUnityPluginWrapper.NativeHttpWrapper.GetContent("http://localhost/WorkDefinition/WorkOrder/foo");
                 Console.WriteLine("Managed result is:");
                 Console.WriteLine(content);
                 Console.ReadLine();
