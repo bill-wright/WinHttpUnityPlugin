@@ -24,7 +24,7 @@ BSTR UTF8toBSTR(char* input)
 	return result;
 }
 
-int FormatError(byte *contentOut, size_t *contentOutSize, const char *msg, int errorMessageID) {
+size_t FormatError(byte *contentOut, size_t *contentOutSize, const char *msg, int errorMessageID) {
 	LPSTR messageBuffer = nullptr;
 
 	size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
@@ -48,7 +48,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 	printf("apiMethod: %ls\n", apiMethod);
 	if (content)
 	{
-		printf("content is presented with size of %d bytes", contentSize);
+		printf("content is presented with size of %u bytes", (unsigned)contentSize);
 	}
 
 	DWORD dwStatusCode = -1;
@@ -99,7 +99,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 		headers += std::to_wstring(contentSize);
 	}
 
-	bResults = WinHttpSendRequest(hRequest, headers.c_str(), -1L, content, contentSize,	contentSize, 0);
+	bResults = WinHttpSendRequest(hRequest, headers.c_str(), -1L, content, (DWORD)contentSize, (DWORD)contentSize, 0);
 	if (!bResults) {
 		FormatError(contentOut, contentOutSize, "WinHttpSendRequest Failed", GetLastError());
 		goto all_done;
@@ -141,8 +141,8 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 				*contentOutSize = ws.length();
 			}
 			else {
-				unsigned int availableBytes = *contentOutSize;
-				*contentOutSize = snprintf((char *)contentOut, availableBytes-1, "ERROR: Need %d bytes to show error.  Only have %d bytes", dwSize, availableBytes);
+				size_t availableBytes = *contentOutSize;
+				*contentOutSize = snprintf((char *)contentOut, availableBytes-1, "ERROR: Need %d bytes to show error.  Only have %d bytes", dwSize, (int)availableBytes);
 			}
 		}
 		goto all_done;
@@ -151,6 +151,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 
 	// Keep checking for data until there is nothing left.
 	{
+		std::stringstream ss;
 		unsigned int idx = 0;
 		do
 		{
@@ -162,19 +163,37 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 				break;
 			}
 
+			{
+				auto buf = new uint8_t[dwSize];
+				if (!buf) {
+					printf("Out of memory error");
+					break;
+				}
+				if (!WinHttpReadData(hRequest, buf, dwSize, &dwDownloaded)) {
+					FormatError(contentOut, contentOutSize, "WinHttpQueryDataAvailable Failed", GetLastError());
+					break;
+				}
+				ss.write((char const *)buf, dwDownloaded);
+				delete[]buf;
+			}
+#if 0
 			if ((idx + dwSize) > *contentOutSize) {
 				*contentOutSize = snprintf((char *)contentOut, *contentOutSize, "Size is bigger than max: %u", *contentOutSize);
-
 				break;
 			}
-
 			if (!WinHttpReadData(hRequest, static_cast<LPVOID>(contentOut + idx), dwSize, &dwDownloaded)) {
 				FormatError(contentOut, contentOutSize, "WinHttpQueryDataAvailable Failed", GetLastError());
 				break;
 			}
 			idx += dwDownloaded;
+#endif //0
 		} while (dwSize > 0);
-		*contentOutSize = idx;
+
+		ss.seekg(0, ss.end);
+		auto length = ss.tellg();
+		ss.seekg(0, ss.beg);
+		ss.read((char *)contentOut, length);
+		*contentOutSize = length;
 	}
 
 all_done:
