@@ -11,8 +11,8 @@
 
 extern "C"
 {
-	DllExport BSTR GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod);
-	DllExport void PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, int contentSize);
+	DllExport int GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *contentOut, size_t *contentOutSize);
+	DllExport int PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize, byte *contentOut, size_t *contentOutSize);
 }
 
 
