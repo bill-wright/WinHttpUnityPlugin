@@ -9,10 +9,16 @@
 #define DllExport __declspec (dllexport)
 #endif
 
+typedef struct WebResults {
+	int httpResultCode;
+	unsigned int contentOutSize;
+	byte *contentOut;
+} WebResults;
+
 extern "C"
 {
-	DllExport int GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *contentOut, size_t *contentOutSize);
-	DllExport int PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize, byte *contentOut, size_t *contentOutSize);
+	DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod);
+	DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize);
 }
 
 

@@ -13,24 +13,31 @@ int main()
 	int port = 80;
 	wstring method = L"GET";
 	wstring command = L"WorkDefinition/WorkOrder/foo";
-	size_t len = 1024 * 1024;
-	byte* content_out = new byte[len];
-	int http_code = GetContent(server.c_str(), port, command.c_str(), content_out, &len);
-	content_out[len] = 0;
+	size_t len = 0;
+	WebResults wr = GetContent(server.c_str(), port, command.c_str());
+	int http_code = wr.httpResultCode;
+	len = wr.contentOutSize;
+	wr.contentOut[len] = 0;
 	cout << "HTTP CODE: " << http_code << " GetResult is:\n";
-	printf("%s", content_out);
+	printf("%s", wr.contentOut);
 	cout << "\nContent size:\n";
-	wcout << len;
+	cout << len;
+	delete[] wr.contentOut;
 
+#if 1
 	cout << "Post request:\n";
 	len = 1024 * 1024;
 	method = L"GET";
 	command = L"DesignProductStructure/DesignComponent/IVF/GetByUuid";
 	LPCSTR content = "<somexml/>";
-	PostContent(server.c_str(), port, command.c_str(), (unsigned char *)content, strlen(content) * sizeof(char), content_out, &len);
-	content_out[len] = 0;
-	cout << "POST HTTP CODE: " << http_code << " GetResult is:\n";
-	printf("%s\n", content_out);
-	cout << "Content size:\n";
-	wcout << len;
+	wr = PostContent(server.c_str(), port, command.c_str(), (unsigned char *)content, strlen(content) * sizeof(char));
+	http_code = wr.httpResultCode;
+	len = wr.contentOutSize;
+	wr.contentOut[len] = 0;
+	cout << "HTTP CODE: " << http_code << " GetResult is:\n";
+	printf("%s", wr.contentOut);
+	cout << "\nContent size:\n";
+	cout << len;
+	delete[] wr.contentOut;
+#endif
 }

@@ -24,24 +24,33 @@ BSTR UTF8toBSTR(char* input)
 	return result;
 }
 
-size_t FormatError(byte *contentOut, size_t *contentOutSize, const char *msg, int errorMessageID) {
+WebResults FormatError(const char *msg, int errorMessageID) {
+	WebResults wr;
+
 	LPSTR messageBuffer = nullptr;
 
 	size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
 		GetModuleHandle(TEXT("winhttp.dll")), errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
-	*contentOutSize = snprintf((char *)contentOut, *contentOutSize, "ERROR: %s (code %d) %s", msg, errorMessageID, messageBuffer);
+	std::stringstream ss;
+	ss << "ERROR: " << msg << " (code " << errorMessageID << ") " << messageBuffer;
 
 	//Free the Win32's string's buffer.
 	LocalFree(messageBuffer);
-	return *contentOutSize;
+
+	ss.seekg(0, ss.end);
+	auto length = ss.tellg();
+	ss.seekg(0, ss.beg);
+	wr.contentOutSize = length;
+	wr.contentOut = new byte[1 + length];
+	ss.read((char *)(wr.contentOut), length);
+	return wr;
 }
 
 
-int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte* content,
-                           size_t contentSize, byte *contentOut, size_t *contentOutSize)
+WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte* content, int contentSize)
 {
-	printf("Input parameters:\n");
+	printf("NEW Input parameters:\n");
 	printf("server: %ls\n", server);
 	printf("port: %hu\n", port);
 	printf("httpMethod: %ls\n", httpMethod);
@@ -60,6 +69,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 	LPVOID lpOutBuffer = NULL;
 	DWORD plLogon = WINHTTP_AUTOLOGON_SECURITY_LEVEL_LOW;
 	std::wstring headers = L"";
+	WebResults wr;
 
 
 	// Use WinHttpOpen to obtain a session handle.
@@ -69,14 +79,14 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 		WINHTTP_NO_PROXY_BYPASS, 0);
 
 	if (!hSession)	{
-		FormatError(contentOut, contentOutSize, "WinHttpOpen Failed", GetLastError());
+		wr = FormatError("WinHttpOpen Failed", GetLastError());
 		goto all_done;
 	}
 
 	// Specify an HTTP server.
 	hConnect = WinHttpConnect(hSession, server, port, 0);
 	if (!hConnect) {
-		FormatError(contentOut, contentOutSize, "WinHttpConnect Failed", GetLastError());
+		wr = FormatError("WinHttpConnect Failed", GetLastError());
 		goto all_done;
 	}
 
@@ -86,7 +96,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 			WINHTTP_DEFAULT_ACCEPT_TYPES,
 			WINHTTP_FLAG_REFRESH);
 	if (!hRequest) {
-		FormatError(contentOut, contentOutSize, "WinHttpOpenRequest Failed", GetLastError());
+		wr = FormatError("WinHttpOpenRequest Failed", GetLastError());
 		goto all_done;
 	}
 
@@ -101,14 +111,14 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 
 	bResults = WinHttpSendRequest(hRequest, headers.c_str(), -1L, content, (DWORD)contentSize, (DWORD)contentSize, 0);
 	if (!bResults) {
-		FormatError(contentOut, contentOutSize, "WinHttpSendRequest Failed", GetLastError());
+		wr = FormatError("WinHttpSendRequest Failed", GetLastError());
 		goto all_done;
 	}
 
 	// End the request.
 	bResults = WinHttpReceiveResponse(hRequest, nullptr);
 	if (!bResults) {
-		FormatError(contentOut, contentOutSize, "WinHttpReceiveResponse Failed", GetLastError());
+		wr = FormatError("WinHttpReceiveResponse Failed", GetLastError());
 		goto all_done;
 	}
 
@@ -119,7 +129,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 		&dwSize, WINHTTP_NO_HEADER_INDEX);
 
 	// if error, return the headers in the contents
-
+	wr.httpResultCode = dwStatusCode;
 	if (dwStatusCode < 200 || dwStatusCode > 299) {
 		WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_TEXT,
 			WINHTTP_HEADER_NAME_BY_INDEX, NULL,
@@ -127,23 +137,23 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 
 		if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 		{
-			if (dwSize <= *contentOutSize) {
-				// Now, use WinHttpQueryHeaders to retrieve the header.
-				bResults = WinHttpQueryHeaders(hRequest,
-					WINHTTP_QUERY_STATUS_TEXT,
-					WINHTTP_HEADER_NAME_BY_INDEX,
-					contentOut, &dwSize,
-					WINHTTP_NO_HEADER_INDEX);
+			char* buf = new char[dwSize];
+			if (!buf) {
+				printf("out of memory");
+				goto all_done;
+			}
+			// Now, use WinHttpQueryHeaders to retrieve the header.
+			bResults = WinHttpQueryHeaders(hRequest,
+				WINHTTP_QUERY_STATUS_TEXT,
+				WINHTTP_HEADER_NAME_BY_INDEX,
+				buf, &dwSize,
+				WINHTTP_NO_HEADER_INDEX);
 
-				std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-				std::string ws = converter.to_bytes((wchar_t *)contentOut);
-				memcpy(contentOut, ws.c_str(), ws.length());
-				*contentOutSize = ws.length();
-			}
-			else {
-				size_t availableBytes = *contentOutSize;
-				*contentOutSize = snprintf((char *)contentOut, availableBytes-1, "ERROR: Need %d bytes to show error.  Only have %d bytes", dwSize, (int)availableBytes);
-			}
+			std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+			std::string ws = converter.to_bytes((wchar_t *)buf);
+			wr.contentOut = new byte[ws.length()];
+			memcpy(wr.contentOut, ws.c_str(), ws.length());
+			wr.contentOutSize = ws.length();
 		}
 		goto all_done;
 	}
@@ -159,7 +169,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 			dwSize = 0;
 			if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
 			{
-				FormatError(contentOut, contentOutSize, "WinHttpQueryDataAvailable Failed", GetLastError());
+				wr = FormatError("WinHttpQueryDataAvailable Failed", GetLastError());
 				break;
 			}
 
@@ -170,7 +180,7 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 					break;
 				}
 				if (!WinHttpReadData(hRequest, buf, dwSize, &dwDownloaded)) {
-					FormatError(contentOut, contentOutSize, "WinHttpQueryDataAvailable Failed", GetLastError());
+					wr = FormatError("WinHttpQueryDataAvailable Failed", GetLastError());
 					break;
 				}
 				ss.write((char const *)buf, dwDownloaded);
@@ -192,8 +202,12 @@ int ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWS
 		ss.seekg(0, ss.end);
 		auto length = ss.tellg();
 		ss.seekg(0, ss.beg);
-		ss.read((char *)contentOut, length);
-		*contentOutSize = length;
+		wr.contentOut = (byte *)GlobalAlloc(GMEM_FIXED, 1 + length);//			new byte[1 + length]; // Add one for possible null termination
+		if (!wr.contentOut) {
+			printf("Out of memory for content %d bytes", 1 + length);
+		}
+		ss.read((char *)(wr.contentOut), length);
+		wr.contentOutSize = length;
 	}
 
 all_done:
@@ -205,16 +219,15 @@ all_done:
 	// printf("\nResult in one string:\n");
 	// printf("%s\n", result.c_str());
 
-	return dwStatusCode;
+	return wr;
 }
 
-DllExport int PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize, byte *contentOut, size_t *contentOutSize)
+DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize)
 {
-	return ExecuteRequest(server, port, L"POST", apiMethod, content, contentSize, contentOut, contentOutSize);
+	return ExecuteRequest(server, port, L"POST", apiMethod, content, contentSize);
 }
 
-DllExport int GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *contentOut, size_t *contentOutSize)
+DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod)
 {
-	return ExecuteRequest(server, port, L"GET", apiMethod, nullptr, 0, contentOut, contentOutSize);
-
+	return ExecuteRequest(server, port, L"GET", apiMethod, nullptr, 0);
 }
