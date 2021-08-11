@@ -234,6 +234,11 @@ DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR api
 	return ExecuteRequest(server, port, L"POST", apiMethod, headers, content, contentSize);
 }
 
+DllExport WebResults PutContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, LPCWSTR headers, byte *content, size_t contentSize)
+{
+	return ExecuteRequest(server, port, L"PUT", apiMethod, headers, content, contentSize);
+}
+
 DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, LPCWSTR headers)
 {
 	return ExecuteRequest(server, port, L"GET", apiMethod, headers, nullptr, 0);

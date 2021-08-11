@@ -36,6 +36,14 @@ namespace WinHttpUnityPluginWrapper {
         }
 
         public static int PostContent(string url, byte[] data, out byte[] content, Dictionary<string, string> headers = null) {
+            return PutPostContent(url, data, out content, "POST", headers);
+        }
+
+        public static int PutContent(string url, byte[] data, out byte[] content, Dictionary<string, string> headers = null) {
+            return PutPostContent(url, data, out content, "PUT", headers);
+        }
+
+        private static int PutPostContent(string url, byte[] data, out byte[] content, string opname, Dictionary<string, string> headers = null) {
             var parsedUrl = new UrlParts(url);
             var size = Marshal.SizeOf(data[0]) * data.Length;
             var unmanagementDataPointer = Marshal.AllocHGlobal(size);
@@ -44,7 +52,13 @@ namespace WinHttpUnityPluginWrapper {
             try {
                 // Copy the array to unmanaged memory.
                 Marshal.Copy(data, 0, unmanagementDataPointer, data.Length);
-                wr = PostContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, FormatHeaders(headers), unmanagementDataPointer, data.Length);
+                if (opname == "POST") {
+                    wr = PostContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, FormatHeaders(headers), unmanagementDataPointer, data.Length);
+                } else if (opname == "PUT") {
+                    wr = PutContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, FormatHeaders(headers), unmanagementDataPointer, data.Length);
+                } else {
+                    throw new InvalidOperationException("Expecting PUT or POST");
+                }
                 // Copy the array from unmanaged memory.
                 content = new byte[wr.contentOutSize];
                 Marshal.Copy(wr.contentOut, content, 0, wr.contentOutSize);
@@ -72,6 +86,15 @@ namespace WinHttpUnityPluginWrapper {
 
         [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
         private static extern WebResults PostContent(
+            [MarshalAs(UnmanagedType.LPWStr)] string server,
+            [MarshalAs(UnmanagedType.U2)]ushort port,
+            [MarshalAs(UnmanagedType.LPWStr)] string apiMethod,
+            [MarshalAs(UnmanagedType.LPWStr)] string headers,
+            IntPtr contentAddr,
+            int contentSize);
+
+        [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+        private static extern WebResults PutContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,
             [MarshalAs(UnmanagedType.LPWStr)] string apiMethod,
