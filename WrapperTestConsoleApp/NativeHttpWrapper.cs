@@ -1,11 +1,7 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="NativeHttpWrapper.cs" company="Open source">
-//   2019 
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
-
+﻿
 namespace WinHttpUnityPluginWrapper {
     using System;
+    using System.Collections.Generic;
     using System.Runtime.InteropServices;
     using System.Text;
 
@@ -13,21 +9,23 @@ namespace WinHttpUnityPluginWrapper {
     /// Wrap native http access dll written on C++ for using in Unity apps for Windows desktop (editor and standonle)
     /// </summary>
     public static class NativeHttpWrapper {
-        /// <summary>
-        /// The get content.
-        /// </summary>
-        /// <param name="url">
-        /// The url.
-        /// </param>
-        /// <returns>
-        /// The string result of request.
-        /// </returns>
-        public static int GetContent(string url, out byte[] content) {
+
+        private static string FormatHeaders(Dictionary<string, string> headers) {
+            string ret = "";
+            if (headers != null) {
+                foreach (var h in headers) {
+                    ret += "\n" + h.Key + ": " + h.Value;
+                }
+            }
+            return ret;
+        }
+
+        public static int GetContent(string url, out byte[] content, Dictionary<string, string> headers = null) {
             var parsedUrl = new UrlParts(url);
-            WebResults wr = GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod);
+            WebResults wr = GetContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, FormatHeaders(headers));
             try {
                 // Copy the array from unmanaged memory.
-                content = new byte[wr.contentOutSize + 1];
+                content = new byte[wr.contentOutSize];
                 Marshal.Copy(wr.contentOut, content, 0, wr.contentOutSize);
             } finally {
                 // Free the unmanaged memory.
@@ -37,7 +35,7 @@ namespace WinHttpUnityPluginWrapper {
             return wr.httpResultCode;
         }
 
-        public static int PostContent(string url, byte[] data, out byte[] content) {
+        public static int PostContent(string url, byte[] data, out byte[] content, Dictionary<string, string> headers = null) {
             var parsedUrl = new UrlParts(url);
             var size = Marshal.SizeOf(data[0]) * data.Length;
             var unmanagementDataPointer = Marshal.AllocHGlobal(size);
@@ -46,9 +44,9 @@ namespace WinHttpUnityPluginWrapper {
             try {
                 // Copy the array to unmanaged memory.
                 Marshal.Copy(data, 0, unmanagementDataPointer, data.Length);
-                wr = PostContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, unmanagementDataPointer, data.Length);
+                wr = PostContent(parsedUrl.Host, parsedUrl.Port, parsedUrl.ApiMethod, FormatHeaders(headers), unmanagementDataPointer, data.Length);
                 // Copy the array from unmanaged memory.
-                content = new byte[wr.contentOutSize + 1];
+                content = new byte[wr.contentOutSize];
                 Marshal.Copy(wr.contentOut, content, 0, wr.contentOutSize);
             } finally {
                 // Free the unmanaged memory.
@@ -68,13 +66,16 @@ namespace WinHttpUnityPluginWrapper {
         private static extern WebResults GetContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,
-            [MarshalAs(UnmanagedType.LPWStr)] string apiMethod);
+            [MarshalAs(UnmanagedType.LPWStr)] string apiMethod,
+            [MarshalAs(UnmanagedType.LPWStr)] string headers
+            );
 
         [DllImport("WinHttpUnityPlugin", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
         private static extern WebResults PostContent(
             [MarshalAs(UnmanagedType.LPWStr)] string server,
             [MarshalAs(UnmanagedType.U2)]ushort port,
             [MarshalAs(UnmanagedType.LPWStr)] string apiMethod,
+            [MarshalAs(UnmanagedType.LPWStr)] string headers,
             IntPtr contentAddr,
             int contentSize);
 

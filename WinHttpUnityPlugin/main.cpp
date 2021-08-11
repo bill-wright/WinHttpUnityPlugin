@@ -48,16 +48,38 @@ WebResults FormatError(const char *msg, int errorMessageID) {
 }
 
 
-WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, byte* content, int contentSize)
+// trim from left
+inline std::wstring& ltrim(std::wstring& s, const wchar_t* t = L" \t\n\r\f\v")
 {
-	printf("NEW Input parameters:\n");
+	s.erase(0, s.find_first_not_of(t));
+	return s;
+}
+
+// trim from right
+inline std::wstring& rtrim(std::wstring& s, const wchar_t* t = L" \t\n\r\f\v")
+{
+	s.erase(s.find_last_not_of(t) + 1);
+	return s;
+}
+
+// trim from left & right
+inline std::wstring& trim(std::wstring& s, const wchar_t* t = L" \t\n\r\f\v")
+{
+	return ltrim(rtrim(s, t), t);
+}
+
+
+WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod, LPCWSTR apiMethod, LPCWSTR in_headers, byte* content, int contentSize)
+{
+	printf("Input parameters:\n");
 	printf("server: %ls\n", server);
 	printf("port: %hu\n", port);
 	printf("httpMethod: %ls\n", httpMethod);
 	printf("apiMethod: %ls\n", apiMethod);
+	printf("headers: %ls\n", in_headers);
 	if (content)
 	{
-		printf("content is presented with size of %u bytes", (unsigned)contentSize);
+		printf("content is presented with size of %u bytes\n", (unsigned)contentSize);
 	}
 
 	DWORD dwStatusCode = -1;
@@ -68,7 +90,7 @@ WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod
 	std::string result = "";
 	LPVOID lpOutBuffer = NULL;
 	DWORD plLogon = WINHTTP_AUTOLOGON_SECURITY_LEVEL_LOW;
-	std::wstring headers = L"";
+	std::wstring headers = in_headers;
 	WebResults wr;
 
 
@@ -103,11 +125,7 @@ WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod
 	// Send a request.
 	WinHttpSetOption(hRequest, WINHTTP_OPTION_AUTOLOGON_POLICY, reinterpret_cast<LPVOID*>(&plLogon), sizeof plLogon);
 
-	if (content)
-	{
-		headers += L"Content-Type: application/xml\nContent-Length: ";
-		headers += std::to_wstring(contentSize);
-	}
+	headers = trim(headers);
 
 	bResults = WinHttpSendRequest(hRequest, headers.c_str(), -1L, content, (DWORD)contentSize, (DWORD)contentSize, 0);
 	if (!bResults) {
@@ -186,17 +204,6 @@ WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod
 				ss.write((char const *)buf, dwDownloaded);
 				delete[]buf;
 			}
-#if 0
-			if ((idx + dwSize) > *contentOutSize) {
-				*contentOutSize = snprintf((char *)contentOut, *contentOutSize, "Size is bigger than max: %u", *contentOutSize);
-				break;
-			}
-			if (!WinHttpReadData(hRequest, static_cast<LPVOID>(contentOut + idx), dwSize, &dwDownloaded)) {
-				FormatError(contentOut, contentOutSize, "WinHttpQueryDataAvailable Failed", GetLastError());
-				break;
-			}
-			idx += dwDownloaded;
-#endif //0
 		} while (dwSize > 0);
 
 		ss.seekg(0, ss.end);
@@ -222,12 +229,12 @@ all_done:
 	return wr;
 }
 
-DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize)
+DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, LPCWSTR headers, byte *content, size_t contentSize)
 {
-	return ExecuteRequest(server, port, L"POST", apiMethod, content, contentSize);
+	return ExecuteRequest(server, port, L"POST", apiMethod, headers, content, contentSize);
 }
 
-DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod)
+DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, LPCWSTR headers)
 {
-	return ExecuteRequest(server, port, L"GET", apiMethod, nullptr, 0);
+	return ExecuteRequest(server, port, L"GET", apiMethod, headers, nullptr, 0);
 }

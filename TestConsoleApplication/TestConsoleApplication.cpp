@@ -3,6 +3,8 @@
 
 #include "pch.h"
 #include <iostream>
+#include <string>
+
 using namespace std;
 
 int main()
@@ -15,7 +17,8 @@ int main()
 //	wstring command = L"WorkDefinition/WorkOrder/foo";
 	wstring command = L"dummy/WorkArea/8ed2fce4-fc11-2db0-e053-24690b99b275";
 	size_t len = 0;
-	WebResults wr = GetContent(server.c_str(), port, command.c_str());
+	wstring headers = L"Accept: text/html, application/xml\nAccept-Encoding: gzip, deflate, br";
+	WebResults wr = GetContent(server.c_str(), port, command.c_str(), headers.c_str());
 	int http_code = wr.httpResultCode;
 	len = wr.contentOutSize;
 	cout << "HTTP CODE: " << http_code << " GetResult is:\n";
@@ -32,7 +35,10 @@ int main()
 	method = L"GET";
 	command = L"DesignProductStructure/DesignComponent/IVF/GetByUuid";
 	LPCSTR content = "<somexml/>";
-	wr = PostContent(server.c_str(), port, command.c_str(), (unsigned char *)content, strlen(content) * sizeof(char));
+
+	headers = L"Accept-Charset: UTF-8\nAccept: text/html, application/xml\nAccept-Encoding: gzip, deflate, br\nContent-Type: application/xml; charset=utf-8\nContent-Length: " + std::to_wstring(strlen(content));
+
+	wr = PostContent(server.c_str(), port, command.c_str(), headers.c_str(), (unsigned char *)content, strlen(content) * sizeof(char));
 	http_code = wr.httpResultCode;
 	len = wr.contentOutSize;
 	cout << "HTTP CODE: " << http_code << " GetResult is:\n";

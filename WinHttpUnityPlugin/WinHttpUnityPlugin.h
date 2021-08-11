@@ -17,8 +17,8 @@ typedef struct WebResults {
 
 extern "C"
 {
-	DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod);
-	DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, byte *content, size_t contentSize);
+	DllExport WebResults GetContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, LPCWSTR headers);
+	DllExport WebResults PostContent(LPCWSTR server, INTERNET_PORT port, LPCWSTR apiMethod, LPCWSTR headers, byte *content, size_t contentSize);
 }
 
 
