@@ -151,7 +151,7 @@ WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod
 
 			std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 			std::string ws = converter.to_bytes((wchar_t *)buf);
-			wr.contentOut = new byte[ws.length()];
+			wr.contentOut = (byte *)GlobalAlloc(GMEM_FIXED, ws.length());
 			memcpy(wr.contentOut, ws.c_str(), ws.length());
 			wr.contentOutSize = ws.length();
 		}
@@ -202,9 +202,9 @@ WebResults ExecuteRequest(LPCWSTR server, INTERNET_PORT port, LPCWSTR httpMethod
 		ss.seekg(0, ss.end);
 		auto length = ss.tellg();
 		ss.seekg(0, ss.beg);
-		wr.contentOut = (byte *)GlobalAlloc(GMEM_FIXED, 1 + length);//			new byte[1 + length]; // Add one for possible null termination
+		wr.contentOut = (byte *)GlobalAlloc(GMEM_FIXED, length);
 		if (!wr.contentOut) {
-			printf("Out of memory for content %d bytes", 1 + length);
+			printf("Out of memory for content %d bytes", length);
 		}
 		ss.read((char *)(wr.contentOut), length);
 		wr.contentOutSize = length;

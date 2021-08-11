@@ -12,17 +12,19 @@ int main()
 //	wstring server = L"10.66.40.100";
 	int port = 80;
 	wstring method = L"GET";
-	wstring command = L"WorkDefinition/WorkOrder/foo";
+//	wstring command = L"WorkDefinition/WorkOrder/foo";
+	wstring command = L"dummy/WorkArea/8ed2fce4-fc11-2db0-e053-24690b99b275";
 	size_t len = 0;
 	WebResults wr = GetContent(server.c_str(), port, command.c_str());
 	int http_code = wr.httpResultCode;
 	len = wr.contentOutSize;
-	wr.contentOut[len] = 0;
 	cout << "HTTP CODE: " << http_code << " GetResult is:\n";
-	printf("%s", wr.contentOut);
+	std::string s(reinterpret_cast<const char *>(wr.contentOut), len);
+	cout << s.c_str();
 	cout << "\nContent size:\n";
-	cout << len;
-	delete[] wr.contentOut;
+	cout << len << endl;
+	GlobalFree(wr.contentOut);
+
 
 #if 1
 	cout << "Post request:\n";
@@ -33,11 +35,11 @@ int main()
 	wr = PostContent(server.c_str(), port, command.c_str(), (unsigned char *)content, strlen(content) * sizeof(char));
 	http_code = wr.httpResultCode;
 	len = wr.contentOutSize;
-	wr.contentOut[len] = 0;
 	cout << "HTTP CODE: " << http_code << " GetResult is:\n";
-	printf("%s", wr.contentOut);
+	std::string s1(reinterpret_cast<const char *>(wr.contentOut), len);
+	cout << s1.c_str();
 	cout << "\nContent size:\n";
-	cout << len;
-	delete[] wr.contentOut;
+	cout << len << endl;
+	GlobalFree(wr.contentOut);
 #endif
 }
